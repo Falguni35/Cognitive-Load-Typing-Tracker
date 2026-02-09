@@ -198,18 +198,19 @@ The model uses 10 engineered features:
 ## Project Structure
 
 ```
-CTTCProject/
-├── app.py                     # Flask API server
-├── train_model.py             # Model training script
-├── dataset.csv                # Training dataset
-├── cognitive_load_model.pkl   # Trained ML model
-├── scaler.pkl                 # Feature scaler
-├── feature_columns.pkl        # Feature order reference
-├── index.html                 # Main typing tracker UI
-├── mental.html                # Mental health
-├── requirements.txt           # Requirement file
-├── wellness.html              # Wellness dashboard UI
-└── README.md                  # This file
+Project/
+├── templates/                     # HTML templates for Flask
+│   ├── index.html                 # Main typing tracker UI
+│   ├── mental.html                # Mental health page
+│   └── wellness.html              # Wellness dashboard UI
+├── app.py                         # Flask API server
+├── train_model.py                 # ML model training script
+├── dataset.csv                    # Training dataset
+├── cognitive_load_model.pkl       # Trained cognitive load model
+├── scaler.pkl                     # Feature scaler
+├── feature_columns.pkl            # Feature order reference
+├── requirements.txt               # Python dependencies
+└── README.md                      # Project documentation
 ```
 
 ## Keyboard Shortcuts
