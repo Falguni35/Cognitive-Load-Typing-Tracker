@@ -715,12 +715,10 @@
               <button class="btn btn-secondary" onclick="resetTest()">
                 🔄 New Sentence
               </button>
-              <button
-                class="btn btn-secondary"
-                onclick="window.location.href='mental.html'"
-              >
-                🧠Mental Test
-              </button>
+              <a href="{{ url_for('mental') }}" class="btn btn-secondary" style="text-decoration: none;">
+                🧠 Mental Test
+              </a>
+
             </div>
           </div>
 
@@ -1110,7 +1108,7 @@
         // Small delay to ensure localStorage is written before redirect
         setTimeout(() => {
           alert("Test completed! Redirecting to Mental Test page.");
-          window.location.href = "mental.html";
+          window.location.href = "/mental";
         }, 100);
       }
 
