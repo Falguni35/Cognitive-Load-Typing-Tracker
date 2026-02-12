@@ -4,21 +4,23 @@ import joblib
 import pandas as pd
 from collections import deque
 import numpy as np
+import os
+# APP SETUP
 
 app = Flask(__name__)
 CORS(app)
 
-# LOAD MODEL (trained using dataset)
+# LOAD MODEL SAFELY (RENDER SAFE)
 
-model = joblib.load("cognitive_load_model.pkl")
-scaler = joblib.load("scaler.pkl")
-FEATURE_COLUMNS = joblib.load("feature_columns.pkl")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-print(f"Loaded model with {len(FEATURE_COLUMNS)} features:")
-print(FEATURE_COLUMNS)
+model = joblib.load(os.path.join(BASE_DIR, "cognitive_load_model.pkl"))
+scaler = joblib.load(os.path.join(BASE_DIR, "scaler.pkl"))
+FEATURE_COLUMNS = joblib.load(os.path.join(BASE_DIR, "feature_columns.pkl"))
 
-# Buffer for smoothing predictions
 prediction_buffer = deque(maxlen=5)
+
+# TEMPLATE ROUTES
 
 @app.route("/")
 def index():
@@ -32,13 +34,11 @@ def mental():
 def wellness():
     return render_template("wellness.html")
 
+# PREDICTION API
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    data = request.json
-
-
-    # Basic input validation
+    data = request.get_json()
 
     required_fields = [
         "speed", "avgInterval", "pause300", "pause500",
@@ -49,7 +49,7 @@ def predict():
         if field not in data:
             return jsonify({"error": f"Missing field: {field}"}), 400
 
-    # Convert to float/int safely
+    # Convert inputs safely
     speed = float(data["speed"])
     avgInterval = float(data["avgInterval"])
     pause300 = int(data["pause300"])
@@ -57,14 +57,11 @@ def predict():
     backspaceCount = int(data["backspaceCount"])
     maxBurst = int(data["maxBurst"])
     editRatio = float(data["editRatio"])
-    duration = max(float(data["duration"]), 0.1)  # avoid zero division
+    duration = max(float(data["duration"]), 0.1)
 
-
-    # Feature preparation (MATCH TRAINING EXACTLY)
-
+    # Feature engineering (MATCH TRAINING)
     total_keys = max(int(speed * duration) + backspaceCount, 1)
 
-    # Create feature dictionary matching EXACT order from training
     feature_dict = {
         "speed": speed,
         "avgInterval": avgInterval,
@@ -78,25 +75,16 @@ def predict():
         "correction_rate": backspaceCount / total_keys
     }
 
-    # Create DataFrame with features in the EXACT order the model expects
-    features = pd.DataFrame([feature_dict])
-    features = features[FEATURE_COLUMNS]  # Ensure correct order
-
-    # Scale features
+    features = pd.DataFrame([feature_dict])[FEATURE_COLUMNS]
     features_scaled = scaler.transform(features)
 
-
     # Prediction + smoothing
-
     raw_score = float(model.predict(features_scaled)[0])
     prediction_buffer.append(raw_score)
 
-    smoothed_score = np.mean(prediction_buffer)
-    smoothed_score = float(np.clip(smoothed_score, 0, 100))
+    smoothed_score = float(np.clip(np.mean(prediction_buffer), 0, 100))
 
-
-    # Cognitive load level
-
+    # Load level
     if smoothed_score < 35:
         level = "low"
     elif smoothed_score < 65:
@@ -104,29 +92,21 @@ def predict():
     else:
         level = "high"
 
-
-    # Behavior-aware confidence
-
+    # Confidence calculation
     error_penalty = min(backspaceCount * 2, 25)
     edit_penalty = min(editRatio * 0.8, 20)
     pause_penalty = min((pause300 + pause500) * 1.5, 20)
 
-    stability_bonus = max(0, 15 - np.std(prediction_buffer) * 2) if len(prediction_buffer) > 1 else 0
+    stability_bonus = (
+        max(0, 15 - np.std(prediction_buffer) * 2)
+        if len(prediction_buffer) > 1
+        else 0
+    )
 
     base_confidence = 85 - abs(smoothed_score - 50) * 0.6
 
-    confidence = (
-        base_confidence
-        - error_penalty
-        - edit_penalty
-        - pause_penalty
-        + stability_bonus
-    )
-
+    confidence = base_confidence - error_penalty - edit_penalty - pause_penalty + stability_bonus
     confidence = float(np.clip(confidence, 40, 95))
-
-
-    # Response
 
     return jsonify({
         "score": round(smoothed_score, 2),
@@ -134,10 +114,8 @@ def predict():
         "confidence": round(confidence, 1)
     })
 
+
+# LOCAL RUN (IGNORED BY RENDER)
+
 if __name__ == "__main__":
-    print("\n" + "="*50)
-    print("Starting Cognitive Load Prediction API")
-    print("="*50)
-    print(f"Model features: {FEATURE_COLUMNS}")
-    print("="*50 + "\n")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(debug=True)
